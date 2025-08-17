@@ -13,7 +13,8 @@
 		"skip_envs": ["verbatim", "lstlisting", "minted", "tikzpicture", "mdframed"]
 	},
 	
-	"engine_metadata": {
+
+  	"engine_metadata": {
 		"passes": 2,
 		"apply_order": [
 		"environments",
@@ -28,8 +29,12 @@
 		"alignment_labels",
 		"algebras_groups",
 		"final_formatting"
-		]
-	},
+	],
+	"rewrite_policy": {
+		"lint_first_pass": true,
+		"apply_rewrites_only_if_any_lint": true
+	}
+},
 	
 	"helpers": {
 		"is_single_token_denominator": "CALLABLE:is_single_token_denominator(B): returns true if B is a single symbol or function token like x, x^{2}, x_{ij}, \\omega^{2}, f(x), \\sin x, \\Gamma(\\alpha).",
@@ -40,65 +45,79 @@
 	
 	"clusters": [
 	
-	{
-		"name": "environments",
-		"rules": [
-		{
-			"id": "env.inline_parentheses_to_dollars",
-			"type": "rewrite",
-			"applies_to": "inline_math",
-			"detect": "\\\\\\(([^)]*)\\\\\\)",
-			"replace": "$$1$"
-		},
-		{
-			"id": "env.forbid_raw_brackets_display",
-			"type": "rewrite",
-			"applies_to": "display_math",
-			"detect": "^\\s*\\\\\\[([\\s\\S]*?)\\\\\\]\\s*$",
-			"replace": "\\\\begin{align}\n    $1\n\\\\end{align}"
-		},
-		{
-			"id": "env.forbid_equation_like_envs",
-			"type": "lint",
-			"applies_to": "any_math",
-			"detect": "\\\\begin\\{(?:equation\\*?|eqnarray\\*?|gather\\*?|multline\\*?|array)\\}",
-			"message": "Use align (single) or align+aligned (multi); never equation/eqnarray/gather/multline/array."
-		},
-		{
-			"id": "env.force_aligned_for_multiline",
-			"type": "lint",
-			"applies_to": "display_math",
-			"detect": "(?s)\\\\begin\\{align\\}[\\s\\S]*?\\\\\\\\[\\s\\S]*?\\\\end\\{align\\}",
-			"message": "For multi-line blocks, wrap lines inside an \\begin{aligned} ... \\end{aligned} nested in align."
-		}
-		]
-	},
-	
-	{
-		"name": "fractions",
-		"rules": [
-		{
-			"id": "frac.inline_frac_to_slash",
-			"type": "rewrite_callable",
-			"applies_to": "inline_math",
-			"function": "split_inline_fraction",
-			"transform": "if is_single_token_denominator(B) then 'A / B' else 'A / ( B )'"
-		},
-		{
-			"id": "frac.inline_nested_cleanup",
-			"type": "rewrite",
-			"applies_to": "inline_math",
-			"detect": "/\\s*\\(\\s*\\\\frac\\{([^}]*)\\}\\{([^}]*)\\}\\s*\\)",
-	"replace": "/ ( $1 / $2 )"
-},
 {
-	"id": "frac.display_slash_to_frac_simple",
-	"type": "rewrite",
-	"applies_to": "display_math",
-	"detect": "([A-Za-z0-9\\\\_\\^\\}\\)]+)\\s*/\\s*([A-Za-z0-9\\\\_\\^\\{\\(]+)",
-	"replace": "\\\\frac{$1}{$2}"
-}
-]
+	"name": "environments",
+	"rules": [
+	{
+		"id": "env.inline_parentheses_to_dollars",
+		"type": "rewrite",
+		"applies_to": "inline_math",
+		"detect": "\\\\\\(([^)]*)\\\\\\)",
+		"replace": "$$1$"
+	},
+	{
+		"id": "env.forbid_raw_brackets_display",
+		"type": "rewrite",
+		"applies_to": "display_math",
+		"detect": "^\\s*\\\\\\[([\\s\\S]*?)\\\\\\]\\s*$",
+		"replace": "\\\\begin{align}\n    $1\n\\\\end{align}"
+	},
+	{
+		"id": "env.forbid_equation_like_envs",
+		"type": "lint",
+		"applies_to": "any_math",
+		"detect": "\\\\begin\\{(?:equation\\*?|eqnarray\\*?|gather\\*?|multline\\*?|array)\\}",
+		"message": "Use align (single) or align+aligned (multi); never equation/eqnarray/gather/multline/array."
+	},
+	{
+		"id": "env.wrap_aligned_for_multiline",
+		"type": "rewrite",
+		"applies_to": "display_math",
+		"detect": "(?s)\\\\begin\\{align\\}([\\s\\S]*?\\\\\\\\[\\s\\S]*?)\\\\end\\{align\\}",
+		"replace": "\\\\begin{align}\n    \\\\begin{aligned}$1\\\\end{aligned}\n\\\\end{align}"
+	}
+	]
+},
+	
+{
+	"name": "fractions",
+	"rules": [
+	{
+		"id": "frac.inline_frac_to_slash",
+		"type": "rewrite_callable",
+		"applies_to": "inline_math",
+		"function": "split_inline_fraction",
+		"transform": "if is_single_token_denominator(B) then 'A / B' else 'A / ( B )'"
+	},
+	{
+		"id": "frac.inline_nested_cleanup",
+		"type": "rewrite",
+		"applies_to": "inline_math",
+		"detect": "/\\s*\\(\\s*\\\\frac\\{([^}]*)\\}\\{([^}]*)\\}\\s*\\)",
+		"replace": "/ ( $1 / $2 )"
+	},
+	{
+		"id": "frac.display_slash_to_frac_simple",
+		"type": "rewrite",
+		"applies_to": "display_math",
+		"detect": "([A-Za-z0-9\\\\_\\^\\}\\)]+)\\s*/\\s*([A-Za-z0-9\\\\_\\^\\{\\(]+)",
+		"replace": "\\\\frac{$1}{$2}"
+	},
+	{
+		"id": "frac.forbid_tfrac_dfrac",
+		"type": "lint",
+		"applies_to": "display_math",
+		"detect": "\\\\tfrac|\\\\dfrac",
+		"message": "Use only \\\\frac in display math; never \\\\tfrac or \\\\dfrac."
+	},
+	{
+		"id": "frac.rewrite_tfrac_dfrac_to_frac",
+		"type": "rewrite",
+		"applies_to": "display_math",
+		"detect": "\\\\tfrac|\\\\dfrac",
+		"replace": "\\\\frac"
+	}
+	]
 },
 
 {
@@ -213,25 +232,81 @@
 			"detect": "(?<!bm\\{)\\\\nabla\\s*\\^\\s*\\{?2\\}?\\s*(?=\\\\bm\\{)",
 					"replace": "\\\\bm{\\\\nabla}^{2}"
 				},
-				{
-					"id": "vc.dot_cross_explicit",
-					"type": "lint",
-					"applies_to": "any_math",
-					"detect": "(?<!\\\\cdot|\\\\times)(?<=\\w)\\s*(?=\\w)",
-					"message": "Use explicit \\cdot or \\times for dot/cross products; avoid implicit products for vectors."
-				}
+		{
+			"id": "vc.dot_cross_explicit",
+			"type": "lint",
+			"applies_to": "any_math",
+			"detect": "(?<=\\\\bm\\{[A-Za-z]\\})\\s+(?=\\\\bm\\{[A-Za-z]\\})",
+			"message": "Use explicit \\cdot or \\times between bold vector symbols."
+		}
 				]
-			},
+},
 			
 			{
 				"name": "delimiters",
 				"rules": [
-				{
-					"id": "delim.left_right_everywhere",
-					"type": "lint",
-					"applies_to": "any_math",
-					"detect": "(?<!\\\\left)\\s*(\\(|\\[|\\{)|\\}(\\)|\\]|\\})",
-				"message": "Wrap delimiters with \\left ... \\right."
+			{
+			"id": "delim.abs_lrpipe_to_vert",
+			"type": "rewrite",
+			"applies_to": "any_math",
+			"detect": "\\\\left\\|([^|]+)\\\\right\\|",
+			"replace": "\\\\left\\\\vert $1 \\\\right\\\\vert"
+			},
+			{
+			"id": "delim.abs_lrvvert_to_vert",
+			"type": "rewrite",
+			"applies_to": "any_math",
+			"detect": "\\\\left\\\\lvert([\\s\\S]*?)\\\\right\\\\rvert",
+			"replace": "\\\\left\\\\vert $1 \\\\right\\\\vert"
+			},
+			{
+			"id": "delim.abs_bare_vert_to_lrvert",
+			"type": "rewrite",
+			"applies_to": "any_math",
+			"detect": "(?<!\\\\left)\\\\vert\\s*([\\s\\S]*?)\\s*\\\\vert(?!\\s*\\\\right)",
+			"replace": "\\\\left\\\\vert $1 \\\\right\\\\vert"
+			},
+			{
+			"id": "delim.abs_bare_lrv_to_lrvert",
+			"type": "rewrite",
+			"applies_to": "any_math",
+			"detect": "(?<!\\\\left)\\\\lvert\\s*([\\s\\S]*?)\\s*\\\\rvert(?!\\s*\\\\right)",
+			"replace": "\\\\left\\\\vert $1 \\\\right\\\\vert"
+			},
+			{
+			"id": "delim.abs_bare_pipes_to_lrvert",
+			"type": "rewrite",
+			"applies_to": "any_math",
+			"detect": "(?<!\\\\left)\\|(.*?)\\|(?!\\s*\\\\right)",
+			"replace": "\\\\left\\\\vert $1 \\\\right\\\\vert"
+			},
+			{
+			"id": "delim.abs_forbid_pipes_lint",
+			"type": "lint",
+			"applies_to": "any_math",
+			"detect": "\\\\left\\||\\||\\\\lvert|\\\\rvert",
+			"message": "Use \\left\\vert ... \\right\\vert for absolute values; avoid bare '|' or \\lvert ... \\rvert."
+			},
+			{
+			"id": "delim.wrap_parens_with_left_right",
+			"type": "rewrite",
+			"applies_to": "any_math",
+			"detect": "(?<!\\\\left)\\(([^()]+)\\)(?!\\s*\\\\right)",
+			"replace": "\\\\left( $1 \\\\right)"
+			},
+			{
+			"id": "delim.wrap_square_with_left_right",
+			"type": "rewrite",
+			"applies_to": "any_math",
+			"detect": "(?<!\\\\left)\\[([^\\[\\]]+)\\](?!\\s*\\\\right)",
+			"replace": "\\\\left[ $1 \\\\right]"
+			},
+			{
+			"id": "delim.wrap_braces_with_left_right",
+			"type": "rewrite",
+			"applies_to": "any_math",
+			"detect": "(?<!\\\\left)\\\\\\{([^{}]+)\\\\\\}(?!\\s*\\\\right)",
+			"replace": "\\\\left\\{ $1 \\\\right\\}"
 			},
 			{
 				"id": "delim.space_after_left_before_right",
@@ -252,30 +327,30 @@
 				"type": "rewrite",
 				"applies_to": "any_math",
 				"detect": "\\s*,\\s*",
-				"replace": " , "
+				"replace": ", "
 			}
 			]
 		},
 		
+	{
+		"name": "indices",
+		"rules": [
 		{
-			"name": "indices",
-			"rules": [
-			{
-				"id": "idx.force_braced_subsup",
-				"type": "rewrite",
-				"applies_to": "any_math",
-				"detect": "(_)([^{\\s])",
-					"replace": "_{$2}"
-				},
-				{
-					"id": "idx.force_braced_sup",
-					"type": "rewrite",
-					"applies_to": "any_math",
-					"detect": "(\\^)([^{\\s])",
-						"replace": "^{ $2 }"
-					}
-					]
-				},
+			"id": "idx.force_braced_subsup",
+			"type": "rewrite",
+			"applies_to": "any_math",
+			"detect": "(_)([^{\\s])",
+			"replace": "_{$2}"
+		},
+		{
+			"id": "idx.force_braced_sup",
+			"type": "rewrite",
+			"applies_to": "any_math",
+			"detect": "(\\^)([^{\\s])",
+				"replace": "^{$2}"
+		}
+		]
+		},
 				
 				{
 					"name": "spacing",
@@ -321,6 +396,20 @@
 						"applies_to": "any_math",
 						"detect": "\\\\begin\\{align\\*\\}[\\s\\S]*?\\\\label\\{",
 							"message": "Do not place labels in unnumbered environments."
+						},
+						{
+						"id": "align.remove_ampersand_before_equals",
+						"type": "rewrite",
+						"applies_to": "display_math",
+						"detect": "\\s*&\\s*(?==)",
+						"replace": ""
+						},
+						{
+						"id": "align.remove_ampersand_after_equals",
+						"type": "rewrite",
+						"applies_to": "display_math",
+						"detect": "(?<==)\\s*&\\s*",
+						"replace": " "
 						}
 						]
 					},
