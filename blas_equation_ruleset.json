@@ -1,0 +1,373 @@
+{
+	"version": "equation-style-v1.0",
+	"description": "Equations-only LaTeX normalization to user's style; leaves prose unchanged.",
+	"scope": {
+		"touch_text_outside_math": false,
+		"inline_math_delims": ["$...$"],
+		"convert_inline_parentheses_to_dollars": true,
+		"display_envs_allowed": ["align"],
+		"display_envs_required_wrappers": {
+			"multi_line": ["align", "aligned"]
+		},
+		"forbidden_envs": ["equation", "equation*", "eqnarray", "eqnarray*", "gather", "gather*", "multline", "multline*", "array"],
+		"skip_envs": ["verbatim", "lstlisting", "minted", "tikzpicture", "mdframed"]
+	},
+	
+	"engine_metadata": {
+		"passes": 2,
+		"apply_order": [
+		"environments",
+		"fractions",
+		"derivatives",
+		"functions_symbols",
+		"vectors_matrices",
+		"vector_calculus",
+		"delimiters",
+		"indices",
+		"spacing",
+		"alignment_labels",
+		"algebras_groups",
+		"final_formatting"
+		]
+	},
+	
+	"helpers": {
+		"is_single_token_denominator": "CALLABLE:is_single_token_denominator(B): returns true if B is a single symbol or function token like x, x^{2}, x_{ij}, \\omega^{2}, f(x), \\sin x, \\Gamma(\\alpha).",
+		"split_inline_fraction": "CALLABLE:split_inline_fraction(expr): finds \\frac{A}{B} and returns A,B tokens safely.",
+		"needs_parentheses": "CALLABLE:needs_parentheses(expr): returns true if expr contains +, -, /, \\cdot, \\times, spaces implying multiple terms, or top-level function application with multiple factors.",
+		"is_unary_minus": "CALLABLE:is_unary_minus(context, '-') to avoid spacing around unary minus."
+	},
+	
+	"clusters": [
+	
+	{
+		"name": "environments",
+		"rules": [
+		{
+			"id": "env.inline_parentheses_to_dollars",
+			"type": "rewrite",
+			"applies_to": "inline_math",
+			"detect": "\\\\\\(([^)]*)\\\\\\)",
+			"replace": "$$1$"
+		},
+		{
+			"id": "env.forbid_raw_brackets_display",
+			"type": "rewrite",
+			"applies_to": "display_math",
+			"detect": "^\\s*\\\\\\[([\\s\\S]*?)\\\\\\]\\s*$",
+			"replace": "\\\\begin{align}\n    $1\n\\\\end{align}"
+		},
+		{
+			"id": "env.forbid_equation_like_envs",
+			"type": "lint",
+			"applies_to": "any_math",
+			"detect": "\\\\begin\\{(?:equation\\*?|eqnarray\\*?|gather\\*?|multline\\*?|array)\\}",
+			"message": "Use align (single) or align+aligned (multi); never equation/eqnarray/gather/multline/array."
+		},
+		{
+			"id": "env.force_aligned_for_multiline",
+			"type": "lint",
+			"applies_to": "display_math",
+			"detect": "(?s)\\\\begin\\{align\\}[\\s\\S]*?\\\\\\\\[\\s\\S]*?\\\\end\\{align\\}",
+			"message": "For multi-line blocks, wrap lines inside an \\begin{aligned} ... \\end{aligned} nested in align."
+		}
+		]
+	},
+	
+	{
+		"name": "fractions",
+		"rules": [
+		{
+			"id": "frac.inline_frac_to_slash",
+			"type": "rewrite_callable",
+			"applies_to": "inline_math",
+			"function": "split_inline_fraction",
+			"transform": "if is_single_token_denominator(B) then 'A / B' else 'A / ( B )'"
+		},
+		{
+			"id": "frac.inline_nested_cleanup",
+			"type": "rewrite",
+			"applies_to": "inline_math",
+			"detect": "/\\s*\\(\\s*\\\\frac\\{([^}]*)\\}\\{([^}]*)\\}\\s*\\)",
+	"replace": "/ ( $1 / $2 )"
+},
+{
+	"id": "frac.display_slash_to_frac_simple",
+	"type": "rewrite",
+	"applies_to": "display_math",
+	"detect": "([A-Za-z0-9\\\\_\\^\\}\\)]+)\\s*/\\s*([A-Za-z0-9\\\\_\\^\\{\\(]+)",
+	"replace": "\\\\frac{$1}{$2}"
+}
+]
+},
+
+{
+"name": "derivatives",
+"rules": [
+{
+	"id": "deriv.replace_partial_fraction_form",
+	"type": "rewrite",
+	"applies_to": "display_math",
+	"detect": "\\\\frac\\{\\\\partial\\s+([^}]*)\\}\\{\\\\partial\\s+([^}]*)\\}",
+	"replace": "\\\\partial_{ $2 } $1"
+},
+{
+"id": "deriv.replace_total_fraction_form",
+"type": "rewrite",
+"applies_to": "display_math",
+"detect": "\\\\frac\\{\\\\mathrm\\{d\\}\\s*([^}]*)\\}\\{\\\\mathrm\\{d\\}\\s*([^}]*)\\}",
+"replace": "\\\\mathrm{d}_{ $2 } $1"
+},
+{
+"id": "deriv.inline_shorthand_allowed",
+"type": "lint",
+"applies_to": "inline_math",
+"detect": "\\\\frac\\{\\\\partial|\\\\frac\\{\\\\mathrm\\{d\\}",
+"message": "Inline derivatives should be compact: use \\dot{x} for time, x^{\\prime} for spatial, or \\partial_{x} f."
+}
+]
+},
+
+{
+"name": "functions_symbols",
+"rules": [
+{
+"id": "func.no_exp",
+"type": "rewrite",
+"applies_to": "any_math",
+"detect": "\\\\exp\\s*\\(",
+"replace": "e^{"
+},
+{
+"id": "func.force_trig_log_upright",
+"type": "rewrite",
+"applies_to": "any_math",
+"detect": "\\\\(sin|cos|tan|cot|sec|csc|arcsin|arccos|arctan|ln|log)\\b",
+"replace": "\\\\mathrm{$1}"
+},
+{
+"id": "func.differential_upright",
+"type": "rewrite",
+"applies_to": "any_math",
+"detect": "(?<!\\\\)\\bd\\b",
+"replace": "\\\\mathrm{d}"
+},
+{
+"id": "func.imag_and_e_plain",
+"type": "lint",
+"applies_to": "any_math",
+"detect": "\\\\mathrm\\{i\\}|\\\\mathrm\\{e\\}",
+"message": "Use plain italic i and e (no \\mathrm) for imaginary unit and exponential base."
+}
+]
+},
+
+{
+"name": "vectors_matrices",
+"rules": [
+{
+"id": "vec.force_bm_symbols",
+"type": "rewrite",
+"applies_to": "any_math",
+"detect": "\\\\mathbf\\{",
+	"replace": "\\\\bm{"
+	},
+	{
+		"id": "vec.explicit_matrix_env",
+		"type": "rewrite",
+		"applies_to": "any_math",
+		"detect": "\\\\begin\\{matrix\\}",
+		"replace": "\\\\begin{pmatrix}"
+	},
+	{
+		"id": "vec.explicit_matrix_env_end",
+		"type": "rewrite",
+		"applies_to": "any_math",
+		"detect": "\\\\end\\{matrix\\}",
+		"replace": "\\\\end{pmatrix}"
+	}
+	]
+},
+
+{
+	"name": "vector_calculus",
+	"rules": [
+	{
+		"id": "vc.bold_nabla_for_vector_ops",
+		"type": "rewrite",
+		"applies_to": "any_math",
+		"detect": "(?<!bm\\{)\\\\nabla\\s*(\\cdot|\\\\times)",
+			"replace": "\\\\bm{\\\\nabla} $1"
+		},
+		{
+			"id": "vc.scalar_laplacian_plain",
+			"type": "rewrite",
+			"applies_to": "any_math",
+			"detect": "\\\\bm\\{\\\\nabla\\}\\s*\\^\\s*\\{?2\\}?\\s*(?=([^\\w]|$))",
+			"replace": "\\\\nabla^{2}"
+		},
+		{
+			"id": "vc.vector_laplacian_bold",
+			"type": "rewrite",
+			"applies_to": "any_math",
+			"detect": "(?<!bm\\{)\\\\nabla\\s*\\^\\s*\\{?2\\}?\\s*(?=\\\\bm\\{)",
+					"replace": "\\\\bm{\\\\nabla}^{2}"
+				},
+				{
+					"id": "vc.dot_cross_explicit",
+					"type": "lint",
+					"applies_to": "any_math",
+					"detect": "(?<!\\\\cdot|\\\\times)(?<=\\w)\\s*(?=\\w)",
+					"message": "Use explicit \\cdot or \\times for dot/cross products; avoid implicit products for vectors."
+				}
+				]
+			},
+			
+			{
+				"name": "delimiters",
+				"rules": [
+				{
+					"id": "delim.left_right_everywhere",
+					"type": "lint",
+					"applies_to": "any_math",
+					"detect": "(?<!\\\\left)\\s*(\\(|\\[|\\{)|\\}(\\)|\\]|\\})",
+				"message": "Wrap delimiters with \\left ... \\right."
+			},
+			{
+				"id": "delim.space_after_left_before_right",
+				"type": "rewrite",
+				"applies_to": "any_math",
+				"detect": "\\\\left(\\S)",
+				"replace": "\\\\left $1"
+			},
+			{
+				"id": "delim.space_before_right",
+				"type": "rewrite",
+				"applies_to": "any_math",
+				"detect": "(\\S)\\\\right",
+				"replace": "$1 \\\\right"
+			},
+			{
+				"id": "delim.comma_spacing_inside",
+				"type": "rewrite",
+				"applies_to": "any_math",
+				"detect": "\\s*,\\s*",
+				"replace": " , "
+			}
+			]
+		},
+		
+		{
+			"name": "indices",
+			"rules": [
+			{
+				"id": "idx.force_braced_subsup",
+				"type": "rewrite",
+				"applies_to": "any_math",
+				"detect": "(_)([^{\\s])",
+					"replace": "_{$2}"
+				},
+				{
+					"id": "idx.force_braced_sup",
+					"type": "rewrite",
+					"applies_to": "any_math",
+					"detect": "(\\^)([^{\\s])",
+						"replace": "^{ $2 }"
+					}
+					]
+				},
+				
+				{
+					"name": "spacing",
+					"rules": [
+					{
+						"id": "space.forbid_microspacing",
+						"type": "rewrite",
+						"applies_to": "any_math",
+						"detect": "\\\\,|\\\\;|\\\\:|\\\\!",
+						"replace": ""
+					},
+					{
+						"id": "space.operator_spacing_binary",
+						"type": "rewrite_callable",
+						"applies_to": "any_math",
+						"function": "space_binary_ops",
+						"transform": "ensure spaces around binary +, -, =, /, \\\\cdot, \\\\times (but not around unary minus)."
+					},
+					{
+						"id": "space.quad_discouraged",
+						"type": "lint",
+						"applies_to": "any_math",
+						"detect": "\\\\quad|\\\\qquad",
+						"message": "\\quad and \\qquad are allowed but discouraged; prefer structural alignment (align/aligned)."
+					}
+					]
+				},
+				
+				{
+					"name": "alignment_labels",
+					"rules": [
+					{
+						"id": "align.one_ampersand_per_line",
+						"type": "lint",
+						"applies_to": "display_math",
+						"detect": "^.*&.*&.*$",
+						"flags": "m",
+						"message": "Use exactly one alignment point (&) per line (at =). For multi-column, keep one & per column side like '... &= ... & ... &= ...'."
+					},
+					{
+						"id": "labels.inside_display_only",
+						"type": "lint",
+						"applies_to": "any_math",
+						"detect": "\\\\begin\\{align\\*\\}[\\s\\S]*?\\\\label\\{",
+							"message": "Do not place labels in unnumbered environments."
+						}
+						]
+					},
+					
+					{
+						"name": "algebras_groups",
+						"rules": [
+						{
+							"id": "alg.grp.upright_names",
+							"type": "rewrite",
+							"applies_to": "any_math",
+							"detect": "\\\\mathfrak\\{(SU|SO|Sp|U|su|so|sp|u)\\}",
+							"replace": "\\\\mathrm{$1}"
+						},
+						{
+							"id": "alg.grp.ensure_upright_su",
+							"type": "rewrite",
+							"applies_to": "any_math",
+							"detect": "\\\\(SU|SO|Sp|U|su|so|sp|u)\\s*\\(",
+							"replace": "\\\\mathrm{$1}("
+						}
+						]
+					},
+					
+					{
+						"name": "final_formatting",
+						"rules": [
+						{
+							"id": "final.trim_extra_spaces",
+							"type": "rewrite",
+							"applies_to": "any_math",
+							"detect": "\\s{2,}",
+							"replace": " "
+						}
+						]
+					}
+					],
+					
+					"reporting": {
+						"emit_diff": true,
+						"emit_lint_summary": true,
+						"lint_asides": [
+						"Prefer align/aligned for all equation alignment.",
+						"Use spaced slash for inline fractions: 'a / b' or 'a / ( b + c )'.",
+						"Never use micro-spacing (\\\\, \\\\; \\\\: \\\\!).",
+						"Use \\bm{...} for vectors and matrices; explicit matrices use pmatrix.",
+						"Always space after \\left, before \\right, and around commas inside delimiters."
+						]
+					}
+				}
